@@ -45,9 +45,9 @@ PhyloSuperTreeUnlinked::~PhyloSuperTreeUnlinked() {
     if (mrpTree) {
         delete mrpTree;
     }
-    if (scmTree) {
-        delete scmTree;
-    }
+    // if (scmTree) {
+    //     delete scmTree;
+    // }
 }
 
 StrVector PhyloSuperTreeUnlinked::getAllSeqNames() {
