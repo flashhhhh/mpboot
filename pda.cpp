@@ -2140,6 +2140,7 @@ int main(){
 
 int main(int argc, char *argv[])
 {
+	MPIHelper::getInstance().init(argc, argv);
 
 	/*************************/
 	{ /* local scope */
@@ -2434,5 +2435,6 @@ int main(int argc, char *argv[])
 	cout << "Date and Time: " << ctime(&cur_time);
 
 	finish_random();
+	MPIHelper::getInstance().finalize(); // Diep 2021.8.03
 	return EXIT_SUCCESS;
 }
