@@ -45,6 +45,8 @@ public:
     void readTreeString(const string &treeString);
 
     void printResultTree(string fileName, bool isAppend);
+    
+    string getResultTreeString();
 
     void reInitializeTree(GeneNode *node = NULL, GeneNode* parent = NULL);
 

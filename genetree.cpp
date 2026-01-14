@@ -241,6 +241,12 @@ void GeneTree::printResultTree(string fileName, bool isAppend) {
     printTree(fileName.c_str(), WT_SORT_TAXA | WT_NEWLINE | (isAppend ? WT_APPEND : 0));
 }
 
+string GeneTree::getResultTreeString() {
+    std::ostringstream oss;
+    printTree(oss, WT_SORT_TAXA | WT_NEWLINE);
+    return oss.str();
+}
+
 void GeneTree::reInitializeTree(GeneNode *node, GeneNode* parent) {
     if (!node) {
         setRootLeaf(NULL);

@@ -80,7 +80,17 @@ StrVector PhyloSuperTreeUnlinked::getAllSeqNames() {
 }
 
 void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
-    for (auto it = begin(); it != end(); it++) {
+    int numGeneTrees = size();
+    int numProcesses = MPIHelper::getInstance().getNumProcesses();
+    int numGeneTreesPerProcess = numGeneTrees / numProcesses + ((numGeneTrees % numProcesses) > 0);
+    int processID = MPIHelper::getInstance().getProcessID();
+
+    // for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin() + numGeneTreesPerProcess * processID;
+        it != begin() + numGeneTreesPerProcess * (processID + 1) && it != end() ; ++it) {
+
+        printf("Process %d, Gene Tree %d\n", processID, it - begin());
+
         cout << "----------     Reconstructing gene tree " << (it - begin()) << "     ----------\n";
         VerboseMode saved_mode;
         saved_mode = verbose_mode;
@@ -92,6 +102,8 @@ void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
         verbose_mode = saved_mode;
         cout << "\n---------- Reconstruction of gene tree " << (it - begin()) << " done ----------\n\n";
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void PhyloSuperTreeUnlinked::printGeneTrees() {
@@ -99,13 +111,61 @@ void PhyloSuperTreeUnlinked::printGeneTrees() {
     treeFile += ".gene_trees";
     // open treeFile and remove all
     ofstream outFile(treeFile.c_str());
-    outFile.close();
-    
-    for (auto it = begin(); it != end(); it++) {
+
+    int numGeneTrees = size();
+    int numProcesses = MPIHelper::getInstance().getNumProcesses();
+    int numGeneTreesPerProcess = numGeneTrees / numProcesses + ((numGeneTrees % numProcesses) > 0);
+    int processID = MPIHelper::getInstance().getProcessID();
+
+    string concentrated_tree_string = "";
+    char separated_character = '@';
+
+    // for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin() + numGeneTreesPerProcess * processID;
+        it != begin() + numGeneTreesPerProcess * (processID + 1) && it != end() ; ++it) {
+
         GeneTree* tree = (GeneTree*)(*it);
         tree->setRootLeaf(NULL);
-        tree->printResultTree(treeFile, true);
+        string treeString = tree->getResultTreeString();
+
+        concentrated_tree_string += to_string(it - begin()) + separated_character;
+        concentrated_tree_string += treeString += separated_character;
     }
+
+    if (MPIHelper::getInstance().isWorker()) {
+        MPIHelper::getInstance().sendString(concentrated_tree_string, PROC_MASTER, TREE_TAG);
+    } else {
+        for (int src = 1; src < MPIHelper::getInstance().getNumProcesses(); ++src) {
+            string treeString;
+            MPIHelper::getInstance().recvString(treeString, src, MPI_ANY_TAG);
+
+            concentrated_tree_string += treeString;
+        }
+
+        vector<pair<int, string> > index_treeString;
+        int ptr = 0;
+
+        while (ptr < concentrated_tree_string.size()) {
+            int index = 0;
+            while (concentrated_tree_string[ptr] != separated_character) {
+                index = index * 10 + concentrated_tree_string[ptr] - '0';
+                ++ptr;
+            }
+            ++ptr;
+
+            string treeString = "";
+            while (concentrated_tree_string[ptr] != separated_character) {
+                treeString += concentrated_tree_string[ptr];
+                ++ptr;
+            }
+            ++ptr;
+
+            index_treeString.emplace_back(index, treeString);
+            outFile << treeString;
+        }
+    }
+
+    outFile.close();
 }
 
 void PhyloSuperTreeUnlinked::dfsMRP(Node* u, Node* pa, int &time, vector<pair<int, int>> &eulerInternalBranch, map<string, int> &leafIndex) {
