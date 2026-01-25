@@ -144,6 +144,7 @@ void PhyloSuperTreeUnlinked::printGeneTrees() {
 
         vector<pair<int, string> > index_treeString;
         int ptr = 0;
+        int id = 0;
 
         while (ptr < concentrated_tree_string.size()) {
             int index = 0;
@@ -162,6 +163,15 @@ void PhyloSuperTreeUnlinked::printGeneTrees() {
 
             index_treeString.emplace_back(index, treeString);
             outFile << treeString;
+
+            // Add tree string to master gene tree set
+            // stringstream ss;
+            // ss << treeString;
+
+            GeneTree* tree = (GeneTree*)(*(begin() + id));
+            tree->readTreeString(treeString);
+            
+            ++id;
         }
     }
 
