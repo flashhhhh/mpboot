@@ -54,6 +54,7 @@
 #include "parstree.h"
 #include "tinatree.h"
 #include "sprparsimony.h"
+#include "tbrparsimony.h"
 #include <algorithm>
 
 void reportReferences(Params &params, ofstream &out, string &original_model) {
@@ -1953,6 +1954,7 @@ void runOptimizeAndReconstruction(Params &params, IQTree *tree) {
 	vector<ModelInfo> model_info;
 
 	resetGlobalParamOnNewAln();
+	_resetGlobalParamOnNewAln();
 	if (params.maximum_parsimony) {
 		optimizeAlignment(tree, params);
 	}

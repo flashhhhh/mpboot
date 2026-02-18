@@ -156,6 +156,7 @@ void _resetGlobalParamOnNewAln() {
     globalParam = NULL;
     iqtree = NULL;
     bestTreeScoreHits = 0;
+    randomMP = 0;
     pllCostMatrix = NULL;
     pllCostNstates = 0;
     vectorCostMatrix = NULL;
@@ -163,6 +164,8 @@ void _resetGlobalParamOnNewAln() {
 
     pllRepsSegments = -1;
     pllSegmentUpper = NULL;
+    tbr_par = NULL;
+    recalculate = NULL;
     pllRemainderLowerBounds = NULL;
     first_call = true;
     doing_stepwise_addition = false;

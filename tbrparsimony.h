@@ -18,6 +18,8 @@
 int pllOptimizeTbrParsimony(pllInstance *tr, partitionList *pr, int mintrav,
                             int maxtrav, IQTree *iqtree);
 
+void _resetGlobalParamOnNewAln();
+
 void pllComputeRandomizedStepwiseAdditionParsimonyTreeTBR(
     pllInstance *tr, partitionList *partitions, int tbr_mintrav,
     int tbr_maxtrav, IQTree *_iqtree);

@@ -232,6 +232,10 @@ void IQTree::init()
     reps_segments = -1;
     segment_upper = NULL;
     original_sample = NULL;
+
+    Checkpoint *checkpoint = new Checkpoint;
+    checkpoint->setIgnore(true);
+    setCheckpoint(checkpoint);
 }
 
 IQTree::IQTree(Alignment* aln)
