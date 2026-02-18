@@ -33,7 +33,7 @@ class IQTree;
 	main function to carry out phylogenetic inference
 	@param params program parameters
 */
-void runPhyloAnalysis(Params &params);
+void runPhyloAnalysis(Params &params, Checkpoint *checkpoint);
 
 void runTreeReconstruction(Params &params, string &original_model,
 		IQTree &tree, vector<ModelInfo> &model_info);
@@ -94,8 +94,8 @@ void computeConsensusNetwork(const char *input_trees, int burnin, int max_count,
  * Diep:
  * Locate the definition here so it is seen by optimizeAlignment
  */
-//#define BootValTypePars int // Diep added
-#define BootValTypePars unsigned short // Diep added
+#define BootValTypePars int // Diep added
+// #define BootValTypePars unsigned short // Diep added
 
 
 struct PatternComp{
