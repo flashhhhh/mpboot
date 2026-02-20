@@ -1,4 +1,5 @@
 #include "phylosupertreeunlinked.h"
+#include "timeutil.h"
 
 PhyloSuperTreeUnlinked::PhyloSuperTreeUnlinked(Params &params): PhyloSuperTree(params, true) {
     this->params = &params;
@@ -229,6 +230,8 @@ void PhyloSuperTreeUnlinked::printResultWithMRPTree() {
 }
 
 void PhyloSuperTreeUnlinked::doSCM() {
+    clock_t start_scm = getRealTime();
+
     StrVector sourcesTree;
     int scaffoldDensity = 0;
     for (auto it = begin(); it != end(); it++) {
@@ -247,6 +250,11 @@ void PhyloSuperTreeUnlinked::doSCM() {
     cout << fixed << setprecision(2) << "SCM: Resolution of SCM Tree: " << 1.0 * (scmTree->nodeNum - scmTree->leafNum - 1) / (scmTree->leafNum - 3) << "\n"; 
 
     firstSCMTree = scmTree->getTreeString();
+
+    clock_t end_scm = getRealTime();
+    double scm_time = ((double) (end_scm - start_scm)) / CLOCKS_PER_SEC;
+
+    cout << "SCM execution time: " << convert_time(scm_time) <<'\n';
 
     if (params->mrp_type == MRPType::MRP_NONE) {
         delete scmTree;
