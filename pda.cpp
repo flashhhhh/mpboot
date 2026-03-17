@@ -1764,16 +1764,23 @@ protected:
 
 
 outstreambuf* outstreambuf::open( const char* name, ios::openmode mode) {
-    fout.open(name, mode);
-	if (!fout.is_open()) {
-		cout << "Could not open " << name << " for logging" << endl;
-		return NULL;
+	fout_buf = nullptr;
+
+	if (MPIHelper::getInstance().isMaster()) {
+		fout.open(name, mode);
+		if (!fout.is_open()) {
+			cout << "Could not open " << name << " for logging" << endl;
+			exit(EXIT_FAILURE);
+			return NULL;
+		}
 	}
-	cout_buf = cout.rdbuf();
-	cerr_buf = cerr.rdbuf();
+
 	fout_buf = fout.rdbuf();
+	cout_buf = cout.rdbuf();
 	cout.rdbuf(this);
-	cerr.rdbuf(this);
+
+	// cerr_buf = cerr.rdbuf();
+	// cerr.rdbuf(this);
     return this;
 }
 
@@ -1806,8 +1813,11 @@ string _log_file;
 int _exit_wait_optn = FALSE;
 
 
-extern "C" void startLogFile() {
-	_out_buf.open(_log_file.c_str());
+extern "C" void startLogFile(bool append_log) {
+	if (append_log)
+        _out_buf.open(_log_file.c_str(), ios::app);
+    else
+        _out_buf.open(_log_file.c_str());
 }
 
 extern "C" void appendLogFile() {
@@ -2187,14 +2197,17 @@ int main(int argc, char *argv[])
 	Params params;
 	parseArg(argc, argv, params);
 
+	bool append_log = false;
+
 	_log_file = params.out_prefix;
 	_log_file += ".log";
-	startLogFile();
+	startLogFile(append_log);
 	atexit(funcExit);
 	signal(SIGABRT, &funcAbort);
 	signal(SIGFPE, &funcAbort);
 	signal(SIGILL, &funcAbort);
 	signal(SIGSEGV, &funcAbort);
+
 	printCopyrightMP(cout);
 	/*
 	double x=1e-100;

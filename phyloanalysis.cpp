@@ -2427,8 +2427,6 @@ void runPhyloAnalysis(Params &params) {
 			resultAnalysisFile += "  Gene trees:                                " + outPrefix + ".gene_trees\n";
 		}
 
-		printf("Process %d here\n", MPIHelper::getInstance().getProcessID());
-
 		if (params.strict_consensus_merger) {
 			if (MPIHelper::getInstance().isMaster()) {
 				doSCM(params, stree);
