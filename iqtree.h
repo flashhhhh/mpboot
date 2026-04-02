@@ -740,6 +740,7 @@ public:
 
     /** newick string of corresponding bootstrap trees */
     IntVector boot_trees;
+    vector<string> boot_tree_strings;
 
 	/** number of multiple optimal trees per replicate */
 	IntVector boot_counts;
@@ -811,6 +812,8 @@ public:
 	void setCurIt(int curIt) {
 		this->curIt = curIt;
 	}
+
+    bool doingStandardBootstrap;
 
 protected:
     /**** NNI cutoff heuristic *****/
@@ -944,6 +947,45 @@ protected:
 
     void estDeltaMin();
 
+    bool gotReplied;
+    bool syncTrees(double cur_correlation, vector<int> &logl_to_send);
+    vector<int> workersProgress;
+    void updateBestTreeFromCandidateSet(string &best_tree_topo);
+    void syncBootTrees();
+    void updateBootTree(int bootId, double score, string tree_str);
+    vector<tuple<int, int, string>> scatterBootstrapTrees();
+    int stopped_workers;
+    vector<bool> stopped_processes_vec;
+    vector<tuple<int, int, string>> convertStringToBootTrees(string message);
+    int getNumber(string &message, int &pter);
+    string getTree(string &message, int &pter);
+    string convertBootTreeToString(vector<tuple<int, int, string>> bTree);
+	double checkpointTime;
+
+    vector<vector<MPI_Request>> reqs;
+    vector<int> sentTo;
+    MPI_Status status;
+
+    void MPITreeSearch_Initialize();
+    void recalculateLoglValue();
+    bool afterSearchIteration(double cur_correlation, string &best_tree_topo);
+
+    int saved_treels_logl_size;
+
+    int getRandomLogl();
+    vector<int> getLoglToSend();
+    void syncFirstLogls();
+    void afterTreeSearch();
+    void syncBootstrapArray(Params &params, int nunit);
+
+    void recalculateIters(int worker, int progress);
+
+    double* benchmarkTime = new double[10];
+    map<int,int> benchMarkLogl;
+    map<int,int> loglIterations;
+
+    ofstream mpiProcessDebug;
+    vector<int> logls_record;
 };
 
 void estimateNNICutoff(Params &params);

@@ -194,6 +194,7 @@ void PhyloSuperTreeUnlinked::dfsMRP(Node* u, Node* pa, int &time, vector<pair<in
     }
 }
 
+// MPI?
 void PhyloSuperTreeUnlinked::buildMRPMatrix() {
     StrVector seqNames = getAllSeqNames();
     StrVector sequences(seqNames.size());
@@ -240,6 +241,8 @@ void PhyloSuperTreeUnlinked::doMRP() {
     mrpTree = new GeneTree(mrpAln);
     mrpTree->treeParams = *(this->params);
     mrpTree->treeParams.gbo_replicates = 0;
+
+    MPI_Barrier(MPI_COMM_WORLD);
     runOptimizeAndReconstruction(mrpTree->treeParams, mrpTree);
     
     switch (params->mrp_type) {

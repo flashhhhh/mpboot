@@ -1263,9 +1263,15 @@ int initCandidateTreeSet(Params &params, IQTree &iqtree, int numInitTrees) {
     int nni_count = 0;
     int nni_steps = 0;
     int numDup = 0;
+	int numProc = MPIHelper::getInstance().getNumProcesses();
+
+	// if(!iqtree.doingStandardBootstrap) 
+	numInitTrees = (numInitTrees + numProc - 1) / numProc + 1;
+
     cout << "Generating " << numInitTrees - 1 << " parsimony trees... ";
     cout.flush();
     double startTime = getCPUTime();
+
     int numDupPars = 0;
 //    if(params.maximum_parsimony) iqtree.candidateTrees.clear(); // Diep: added this to fix the bug of sorted aln <> orig aln
     for (int treeNr = 1; treeNr < numInitTrees; treeNr++) {
@@ -1716,6 +1722,7 @@ void runTreeReconstruction(Params &params, string &original_model, IQTree &iqtre
     	printAnalysisInfo(model_df, iqtree, params);
     }
 
+	// MPI Here
     if (!params.pll) {
         uint64_t mem_size = iqtree.getMemoryRequired();
 #if defined __APPLE__ || defined __MACH__
@@ -1942,6 +1949,8 @@ void runTreeReconstruction(Params &params, string &original_model, IQTree &iqtre
 void runOptimizeAndReconstruction(Params &params, IQTree *tree) {
 	string original_model = params.model_name;
 	vector<ModelInfo> model_info;
+
+	printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
 
 	resetGlobalParamOnNewAln();
 	if (params.maximum_parsimony) {

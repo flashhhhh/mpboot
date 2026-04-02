@@ -3640,6 +3640,14 @@ bool MPIHelper::gotMessage() {
         return false;
 }
 
+int MPIHelper::getPendingMessageSource() {
+	assert(gotMessage());
+	int flag = 0;
+    MPI_Status status;
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+	return status.MPI_SOURCE;
+}
+
 void MPIHelper::sendString(string &str, int dest, int tag) {
     char *buf = (char*)str.c_str();
     MPI_Send(buf, str.length()+1, MPI_CHAR, dest, tag, MPI_COMM_WORLD);
@@ -3663,6 +3671,25 @@ int MPIHelper::recvString(string &str, int src, int tag) {
     str = recvBuffer;
     delete [] recvBuffer;
     return status.MPI_SOURCE;
+}
+
+void MPIHelper::asyncSendInts(vector<int> &vec, int dest, int tag, MPI_Request *req) {
+	int* buf = new int[vec.size()];
+	copy(vec.begin(), vec.end(), buf);
+	MPI_Isend(buf, vec.size(), MPI_INT, dest, tag, MPI_COMM_WORLD, req);
+}
+
+int MPIHelper::recvInts(vector<int> &vec, int src, int tag) {
+	MPI_Status status;
+	MPI_Probe(src, tag, MPI_COMM_WORLD, &status);
+	int msgCount;
+	MPI_Get_count(&status, MPI_INT, &msgCount);
+	// receive the message
+	int *recvBuffer = new int[msgCount];
+	MPI_Recv(recvBuffer, msgCount, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+	vec = vector<int>(recvBuffer, recvBuffer + msgCount);
+	delete[] recvBuffer;
+	return status.MPI_SOURCE;
 }
 
 string MPIHelper::scatterBootstrapTrees(vector<vector<tuple<int, int, string>>> &bTrees) {
