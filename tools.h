@@ -2287,6 +2287,10 @@ public:
         MPIHelper::processID = processID;
     }
 
+    string getProcessSuffix(int i = MPIHelper::getInstance().getProcessID()) {
+        return ".process." + to_string(i);
+    }
+
     /** synchronize random seed from master to all workers */
     void syncRandomSeed();
     

@@ -1265,8 +1265,7 @@ int initCandidateTreeSet(Params &params, IQTree &iqtree, int numInitTrees) {
     int numDup = 0;
 	int numProc = MPIHelper::getInstance().getNumProcesses();
 
-	// if(!iqtree.doingStandardBootstrap) 
-	numInitTrees = (numInitTrees + numProc - 1) / numProc + 1;
+	if (!iqtree.doingStandardBootstrap) numInitTrees = (numInitTrees + numProc - 1) / numProc + 1;
 
     cout << "Generating " << numInitTrees - 1 << " parsimony trees... ";
     cout.flush();

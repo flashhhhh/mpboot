@@ -91,6 +91,7 @@ void IQTree::setParams(Params &params) {
     candidateTrees.aln = aln;
     candidateTrees.popSize = params.popSize;
     candidateTrees.maxCandidates = params.maxCandidates;
+    doingStandardBootstrap = params.num_bootstrap_samples > 0;
 
     sse = params.SSE;
 //    if (params.maxtime != 1000000) {
@@ -1820,6 +1821,9 @@ double IQTree::doTreeSearch() {
 
     for ( ; (!doingStandardBootstrap && MPIHelper::getInstance().isWorker()) || !stop_rule.meetStopCondition(curIt, cur_correlation); curIt++) {
         if(stopped_workers > 0) break;
+
+        // printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
+
         searchinfo.curIter = curIt;
 		if(params->cutoff_percent > 100){
 			// old way of updating logl_cutoff
@@ -2132,12 +2136,15 @@ double IQTree::doTreeSearch() {
                  cout << "UPDATE BEST LOG-LIKELIHOOD: " << curScore << endl;
              }
              setBestTree(imd_tree, curScore);
-             if (params->write_best_trees) {
-                 ostringstream iter_string;
-                 iter_string << curIt;
-                 printResultTree(iter_string.str());
-             }
-             printResultTree();
+
+             if (doingStandardBootstrap || MPIHelper::getInstance().isMaster()) {
+                if (params->write_best_trees) {
+                    ostringstream iter_string;
+                    iter_string << curIt;
+                    printResultTree(iter_string.str());
+                }
+                printResultTree();
+            }
         }
 
         // check whether the tree can be put into the reference set
@@ -4572,6 +4579,9 @@ void IQTree::printResultTree(string suffix) {
     setRootNode(params->root);
     string tree_file_name = params->out_prefix;
     tree_file_name += ".treefile";
+    if (doingStandardBootstrap) {
+        tree_file_name += MPIHelper::getInstance().getProcessSuffix();
+    }
     if (suffix.compare("") != 0) {
         string iter_tree_name = tree_file_name + "." + suffix;
 //        printTree(iter_tree_name.c_str(), WT_BR_LEN | WT_BR_LEN_FIXED_WIDTH | WT_SORT_TAXA | WT_NEWLINE); // for ML
