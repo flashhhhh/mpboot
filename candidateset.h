@@ -174,10 +174,8 @@ public:
     void updateSingleSyncTree(string singleTree);
 
     void updateSyncTrees(string syncString);
-
 private:
 	vector<string> candidateTreeVec; // Diep added to avoid bias in support values for big group
-
 };
 
 #endif /* CANDIDATESET_H_ */

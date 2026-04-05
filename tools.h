@@ -169,6 +169,8 @@ private:
 
 /**
         vector of double number
+		should be using:
+			using DoubleVector vector<double>;
  */
 typedef vector<double> DoubleVector;
 
@@ -2219,6 +2221,7 @@ void summarizeHeader(ostream &out, Params &params, bool budget_constraint, Input
 void summarizeFooter(ostream &out, Params &params);
 
 int calculateSequenceHash(string &seq); 
+void concatMPIFilesIntoSingleFile(string output);
 
 #define PROC_MASTER 0
 #define TREE_TAG 1 // Message contain trees
@@ -2230,6 +2233,8 @@ int calculateSequenceHash(string &seq);
 
 
 using namespace std;
+
+
 
 class MPIHelper {
 public:
@@ -2299,7 +2304,8 @@ public:
 
     /** @return true if got any message from another process */
     bool gotMessage();
-    int getPendingMessageSource();
+	int getPendingMessageSource();
+
 
     /** wrapper for MPI_Send a string
         @param str string to send
@@ -2309,8 +2315,8 @@ public:
 
     void sendString(string &str, int dest, int tag);
     void asyncSendString(string &str, int dest, int tag, MPI_Request *req);
-    void asyncSendInts(vector<int> &vec, int dest, int tag, MPI_Request *req);
-    
+	void asyncSendInts(vector<int> &vec, int dest, int tag, MPI_Request *req);
+
     /** wrapper for MPI_Recv a string
         @param[out] str string received
         @param src source process
@@ -2318,7 +2324,7 @@ public:
         @return the source process that sent the message
     */
     int recvString(string &str, int src = MPI_ANY_SOURCE, int tag = MPI_ANY_TAG);
-    int recvInts(vector<int> &vec, int src, int tag);
+	int recvInts(vector<int> &vec, int src, int tag);
 
     /** wrapper for MPI_Recv an entire Checkpoint object
         @param[out] ckp Checkpoint object received
@@ -2404,5 +2410,42 @@ public:
 private:
     int numNNISearch;
 };
+
+class MPIOut {
+        private: 
+                bool disableOutput;
+	public:
+                MPIOut() {
+                        disableOutput = false;
+                }
+
+		template<class TArg>
+		MPIOut &operator<<(TArg arg) {
+			if (MPIHelper::getInstance().isMaster() && !(this)->disableOutput) cout << arg;
+			return (*this);
+		}
+		static MPIOut &getInstance() {
+			static MPIOut instance;
+			return instance;
+		}
+
+                void setDisableOutput(bool disableOutput) {
+                        this->disableOutput = disableOutput;
+                }
+};
+
+#define endl '\n'
+#define mpiout MPIOut::getInstance()
+
+#define PROC_MASTER 0
+#define TREE_TAG 1 // Message contain trees
+#define STOP_TAG 2 // Stop message
+#define BOOT_TAG 3 // Message to please send bootstrap trees
+#define BOOT_TREE_TAG 4 // bootstrap tree tag
+#define LOGL_CUTOFF_TAG 5 // send logl_cutoff for ultrafast bootstrap
+#define isAllowedToPrint MPIHelper::getInstance().isMaster()
+
+
+using namespace std;
 
 #endif

@@ -664,7 +664,6 @@ protected:
     int k_represent;
 
 public:
-
     /**
      *  @brief: optimize model parameters on the current tree
      *  either IQ-TREE or PLL
@@ -945,7 +944,7 @@ protected:
      */
     void findBestBonus(double &best_score, NodeVector &best_nodes, NodeVector &best_dads, Node *node = NULL, Node *dad = NULL);
 
-    void estDeltaMin();
+void estDeltaMin();
 
     bool gotReplied;
     bool syncTrees(double cur_correlation, vector<int> &logl_to_send);
