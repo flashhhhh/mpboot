@@ -2509,14 +2509,12 @@ void runPhyloAnalysis(Params &params) {
 		}
 
 		if (params.strict_consensus_merger) {
-			if (MPIHelper::getInstance().isMaster()) {
-				doSCM(params, stree);
-				resultAnalysisFile += "  Strict consensus merger tree:              " + outPrefix + ".scm\n";
-				if (params.mrp_type != MRP_NONE) {
-					resultAnalysisFile += "  Refined strict consensus merger tree:      " + outPrefix + ".treefile\n";
-				}
-				resultAnalysisFile += "  Draw SCM tree:                             " + outPrefix + ".draw\n";
+			doSCM(params, stree);
+			resultAnalysisFile += "  Strict consensus merger tree:              " + outPrefix + ".scm\n";
+			if (params.mrp_type != MRP_NONE) {
+				resultAnalysisFile += "  Refined strict consensus merger tree:      " + outPrefix + ".treefile\n";
 			}
+			resultAnalysisFile += "  Draw SCM tree:                             " + outPrefix + ".draw\n";
 		} else if (params.mrp_type != MRP_NONE) {
 			doMRP(params, stree);
 			resultAnalysisFile += "  MRP tree:                                  " + outPrefix + ".treefile\n";

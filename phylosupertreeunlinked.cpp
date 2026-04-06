@@ -337,6 +337,8 @@ void PhyloSuperTreeUnlinked::doSCM() {
 
     int maxDegree = 0;
 
+    printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
+
     for (auto polytomy: polytomies) {
         maxDegree = max(maxDegree, polytomy->degree());
 
