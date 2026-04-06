@@ -1817,9 +1817,6 @@ double IQTree::doTreeSearch() {
     if (MPIHelper::getInstance().isMaster() || doingStandardBootstrap) {
         printResultTree();
     }
-    if (MPIHelper::getInstance().isMaster() || doingStandardBootstrap) {
-        printResultTree();
-    }
     string treels_name = params->out_prefix;
     treels_name += ".treels";
     string out_lh_file = params->out_prefix;
@@ -1868,6 +1865,8 @@ double IQTree::doTreeSearch() {
     for ( ; (!doingStandardBootstrap && MPIHelper::getInstance().isWorker()) || !stop_rule.meetStopCondition(curIt, cur_correlation); curIt++) {
         if(stopped_workers > 0) break;
 
+        printf("Process %d, curIT %d\n", MPIHelper::getInstance().getProcessID(), curIt);
+
         // printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
 
         searchinfo.curIter = curIt;
@@ -1900,7 +1899,6 @@ double IQTree::doTreeSearch() {
 				logl_cutoff = *min_element(boot_tree_orig_logl.begin(), boot_tree_orig_logl.end());
 			}else{
 				if (params->avoid_duplicated_trees && treels_logl.size() > 1000) {
-					if (MPIHelper::getInstance().isMaster()) recalculateLoglValue();
 					if (MPIHelper::getInstance().isMaster()) recalculateLoglValue();
 				}
 			}
@@ -4931,6 +4929,8 @@ bool IQTree::syncTrees(double cur_correlation, vector<int> &logl_to_send) {
                 &reqs[worker][1]
             );
 
+            printf("Master sent\n");
+
             // message = to_string(shouldStop) + ' ' + to_string((int)-logl_cutoff) + ' ' + candidateTrees.getSyncTrees();
             if (shouldStop) {
                 stopped_workers += 1;                
@@ -4960,6 +4960,7 @@ bool IQTree::syncTrees(double cur_correlation, vector<int> &logl_to_send) {
             shouldStop = loglAndStopFlag[0];
             if (shouldStop == 1) return true;
             logl_cutoff = loglAndStopFlag[1];
+            printf("Process %d recv\n", MPIHelper::getInstance().getProcessID());
         }
 
         // Diep: I'm changing the logic here. The worker sends if and only if not receiving stop signal
@@ -4979,6 +4980,7 @@ bool IQTree::syncTrees(double cur_correlation, vector<int> &logl_to_send) {
                 &reqs[0][1]
             );
             gotReplied = false;
+            printf("Process %d sent\n", MPIHelper::getInstance().getProcessID());
         }
 
         if (gotNewMessage) { // Diep continue with processing received msg
@@ -5088,5 +5090,7 @@ void IQTree::recalculateIters(int worker, int progress) {
     curIt = 0;
     for(int i = 0; i < workersProgress.size(); ++i) {
         curIt += workersProgress[i];
+        cout << workersProgress[i] <<" ";
     }
+    cout <<'\n';
 }
