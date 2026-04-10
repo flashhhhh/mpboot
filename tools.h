@@ -2226,6 +2226,7 @@ int calculateSequenceHash(string &seq);
 #define BOOT_TAG 3 // Message to please send bootstrap trees
 #define BOOT_TREE_TAG 4 // bootstrap tree tag
 #define LOGL_CUTOFF_TAG 5 // send logl_cutoff for ultrafast bootstrap
+#define GENE_TREE_ALLOCATION_TAG 6 // send gene tree allocation
 #define isAllowedToPrint MPIHelper::getInstance().isMaster()
 
 

@@ -52,6 +52,8 @@ public:
     StrVector allSeqNames;
 
     map<string, int> seqNameToIndex;
+
+    vector<int> gene_tree_assigned;
 };
 
 #endif

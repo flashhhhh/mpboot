@@ -1,4 +1,5 @@
 #include "phylosupertreeunlinked.h"
+#include <queue>
 
 PhyloSuperTreeUnlinked::PhyloSuperTreeUnlinked(Params &params): PhyloSuperTree(params, true) {
     this->params = &params;
@@ -82,14 +83,65 @@ StrVector PhyloSuperTreeUnlinked::getAllSeqNames() {
 void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
     int numGeneTrees = size();
     int numProcesses = MPIHelper::getInstance().getNumProcesses();
-    int numGeneTreesPerProcess = numGeneTrees / numProcesses + ((numGeneTrees % numProcesses) > 0);
+
+    string gene_tree_allocation_encoding = "";
+
+    if (MPIHelper::getInstance().isMaster()) {
+        priority_queue<pair<long long, int>, vector<pair<long long, int>>, greater<pair<long long, int>>> sum_costs_and_processes;
+        for (int p = 0; p < numProcesses; ++p) sum_costs_and_processes.emplace(0, p);
+
+        vector<vector<int>> gene_tree_allocation_per_process(numProcesses);
+
+        for (int i = 0; i < numGeneTrees; ++i) {
+            auto it = begin() + i;
+            int nseq = (*it)->aln->getNSeq();
+            int npattern = (*it)->aln->getNPattern();
+
+            auto [sumCost, process] = sum_costs_and_processes.top();
+            sum_costs_and_processes.pop();
+
+            gene_tree_allocation_per_process[process].push_back(i);
+
+            sumCost += 1ll * nseq * npattern;
+            sum_costs_and_processes.emplace(sumCost, process);
+        }
+
+        for (int p = 0; p < numProcesses; ++p) {
+            string gene_tree_allocation = "";
+            for (int gene_tree_index : gene_tree_allocation_per_process[p]) {
+                gene_tree_allocation += to_string(gene_tree_index);
+                gene_tree_allocation += "#";
+            }
+
+            if (p == 0) {
+                gene_tree_allocation_encoding = gene_tree_allocation;
+            } else {
+                MPIHelper::getInstance().sendString(gene_tree_allocation, p, GENE_TREE_ALLOCATION_TAG);
+            }
+        }
+    } else {
+        MPIHelper::getInstance().recvString(gene_tree_allocation_encoding, PROC_MASTER, GENE_TREE_ALLOCATION_TAG);
+    }
+
+    for (int start = 0; start < (int) gene_tree_allocation_encoding.size(); ++start) {
+        int finish = start;
+        int num = 0;
+
+        while (gene_tree_allocation_encoding[finish] != '#') {
+            num = num * 10 + gene_tree_allocation_encoding[finish] - '0';
+            ++finish;
+        }
+
+        gene_tree_assigned.push_back(num);
+        start = finish;
+    }
+
     int processID = MPIHelper::getInstance().getProcessID();
 
-    // for (auto it = begin(); it != end(); it++) {
-    for (auto it = begin() + numGeneTreesPerProcess * processID;
-        it != begin() + numGeneTreesPerProcess * (processID + 1) && it != end() ; ++it) {
+    for (int gene_tree_index : gene_tree_assigned) {
+        auto it = begin() + gene_tree_index;
 
-        printf("Process %d, Gene Tree %d\n", processID, it - begin());
+        printf("Process %d, Gene Tree %d\n", processID, gene_tree_index);
 
         cout << "----------     Reconstructing gene tree " << (it - begin()) << "     ----------\n";
         VerboseMode saved_mode;
@@ -114,15 +166,13 @@ void PhyloSuperTreeUnlinked::printGeneTrees() {
 
     int numGeneTrees = size();
     int numProcesses = MPIHelper::getInstance().getNumProcesses();
-    int numGeneTreesPerProcess = numGeneTrees / numProcesses + ((numGeneTrees % numProcesses) > 0);
     int processID = MPIHelper::getInstance().getProcessID();
 
     string concentrated_tree_string = "";
     char separated_character = '@';
 
-    // for (auto it = begin(); it != end(); it++) {
-    for (auto it = begin() + numGeneTreesPerProcess * processID;
-        it != begin() + numGeneTreesPerProcess * (processID + 1) && it != end() ; ++it) {
+    for (int gene_tree_index : gene_tree_assigned) {
+        auto it = begin() + gene_tree_index;
 
         GeneTree* tree = (GeneTree*)(*it);
         tree->setRootLeaf(NULL);
