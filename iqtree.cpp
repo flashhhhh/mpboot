@@ -5679,7 +5679,7 @@ void IQTree::printResultTree(string suffix) {
     setRootNode(params->root);
     string tree_file_name = params->out_prefix;
     tree_file_name += ".treefile";
-    if (doingStandardBootstrap) {
+    if (params->mpi_treesearch) {
         tree_file_name += MPIHelper::getInstance().getProcessSuffix();
     }
     if (suffix.compare("") != 0) {

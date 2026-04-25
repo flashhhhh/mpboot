@@ -1267,12 +1267,11 @@ int initCandidateTreeSet(Params &params, IQTree &iqtree, int numInitTrees) {
     int numDup = 0;
 	int numProc = MPIHelper::getInstance().getNumProcesses();
 
-	if(!iqtree.doingStandardBootstrap) numInitTrees = (numInitTrees + numProc - 1) / numProc + 1;
+	if(params.mpi_treesearch) numInitTrees = (numInitTrees + numProc - 1) / numProc + 1;
 
 	mpiout << "Generating " << numInitTrees - 1 << " parsimony trees... ";
     cout.flush();
     double startTime = getCPUTime();
-
 
     int numDupPars = 0;
 //    if(params.maximum_parsimony) iqtree.candidateTrees.clear(); // Diep: added this to fix the bug of sorted aln <> orig aln
@@ -1417,7 +1416,7 @@ int initCandidateTreeSet(Params &params, IQTree &iqtree, int numInitTrees) {
             iqtree.setBestTree(tree, iqtree.curScore);
             mpiout << "BETTER TREE FOUND: " << iqtree.bestScore << endl;
         }
-    }
+    }	
     double nniTime = getCPUTime() - startTime;
     mpiout << "Average time for 1 NNI search: " << nniTime / initParsimonyTrees.size() << endl;
     return numDup;
