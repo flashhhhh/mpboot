@@ -97,6 +97,7 @@ void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
         verbose_mode = VB_QUIET;
 
         GeneTree* tree = (GeneTree*)(*it);
+        tree->treeParams.mpi_treesearch = false;
         runOptimizeAndReconstruction(tree->treeParams, tree);
         
         verbose_mode = saved_mode;

@@ -1725,56 +1725,68 @@ void runTreeReconstruction(Params &params, string &original_model, IQTree &iqtre
 
 	// MPI Here
     if (!params.pll) {
-		auto calcMemoryIntMB = [&](uint64_t mem_size) -> double {
-			return ((double) mem_size * sizeof(int) / 1000.0) / 1000;
-		};
+		if (params.mpi_treesearch) {
+			auto calcMemoryIntMB = [&](uint64_t mem_size) -> double {
+				return ((double) mem_size * sizeof(int) / 1000.0) / 1000;
+			};
 
-        uint64_t mem_size = iqtree.getMemoryRequired();
-        mpiout << "NOTE: " << calcMemoryIntMB(mem_size) << " MB RAM is required for each process!" << endl;
+			uint64_t mem_size = iqtree.getMemoryRequired();
+			mpiout << "NOTE: " << calcMemoryIntMB(mem_size) << " MB RAM is required for each process!" << endl;
 
-		const int HOST_NAME_TAG = 69420;
-		const int HOST_MEMORY_TAG = 69421;
+			const int HOST_NAME_TAG = 69420;
+			const int HOST_MEMORY_TAG = 69421;
 
-		string hostName;
-		int countSameHost = 1;
+			string hostName;
+			int countSameHost = 1;
 
-		char *_hostName = new char[MPI_MAX_PROCESSOR_NAME + 1];
-		int *_hostNameLenght = new int;
-		MPI_Get_processor_name(_hostName, _hostNameLenght);
-		hostName = (string) _hostName;			
-		delete[] _hostName;
-		delete _hostNameLenght;
+			char *_hostName = new char[MPI_MAX_PROCESSOR_NAME + 1];
+			int *_hostNameLenght = new int;
+			MPI_Get_processor_name(_hostName, _hostNameLenght);
+			hostName = (string) _hostName;			
+			delete[] _hostName;
+			delete _hostNameLenght;
 
-		if (MPIHelper::getInstance().isMaster()) {
-			map<string, int> countProcessPerHost;
-			countProcessPerHost[hostName]++;
-			for(int i = 1; i < MPIHelper::getInstance().getNumProcesses(); ++i) {
-				string processHostName;
-				uint64_t hostMemSize;
-				MPIHelper::getInstance().recvString(processHostName, i, HOST_NAME_TAG);
-				MPI_Status status;
-				MPI_Probe(i, HOST_MEMORY_TAG, MPI_COMM_WORLD, &status);
-				MPI_Recv(&hostMemSize, 1, MPI_LONG_INT, i, HOST_MEMORY_TAG, MPI_COMM_WORLD, &status);
-				countProcessPerHost[processHostName]++;
-				if (countProcessPerHost[processHostName] * mem_size >= hostMemSize) {
-					outError("Memory required exceeds your computer RAM size!");
+			if (MPIHelper::getInstance().isMaster()) {
+				map<string, int> countProcessPerHost;
+				countProcessPerHost[hostName]++;
+				for(int i = 1; i < MPIHelper::getInstance().getNumProcesses(); ++i) {
+					string processHostName;
+					uint64_t hostMemSize;
+					MPIHelper::getInstance().recvString(processHostName, i, HOST_NAME_TAG);
+					MPI_Status status;
+					MPI_Probe(i, HOST_MEMORY_TAG, MPI_COMM_WORLD, &status);
+					MPI_Recv(&hostMemSize, 1, MPI_LONG_INT, i, HOST_MEMORY_TAG, MPI_COMM_WORLD, &status);
+					countProcessPerHost[processHostName]++;
+					if (countProcessPerHost[processHostName] * mem_size >= hostMemSize) {
+						outError("Memory required exceeds your computer RAM size!");
+					}
 				}
+				for(auto &[hostName, countProcess]: countProcessPerHost) {
+					mpiout << "Host " << hostName << " requires " << calcMemoryIntMB(mem_size) * countProcess << " MB RAM" << endl;
+				}
+				mpiout << endl;
+			} else {
+				uint64_t hostMemorySize = getMemorySize();
+				MPIHelper::getInstance().sendString(hostName, PROC_MASTER, HOST_NAME_TAG);
+				MPI_Send(&hostMemorySize, 1, MPI_LONG_INT, PROC_MASTER, HOST_MEMORY_TAG, MPI_COMM_WORLD);
 			}
-			for(auto &[hostName, countProcess]: countProcessPerHost) {
-				mpiout << "Host " << hostName << " requires " << calcMemoryIntMB(mem_size) * countProcess << " MB RAM" << endl;
+
+			MPI_Barrier(MPI_COMM_WORLD);
+
+			if (mem_size >= getMemorySize()) {
+				outError("Memory required exceeds your computer RAM size!");
 			}
-			mpiout << endl;
 		} else {
-			uint64_t hostMemorySize = getMemorySize();
-			MPIHelper::getInstance().sendString(hostName, PROC_MASTER, HOST_NAME_TAG);
-			MPI_Send(&hostMemorySize, 1, MPI_LONG_INT, PROC_MASTER, HOST_MEMORY_TAG, MPI_COMM_WORLD);
+			uint64_t mem_size = iqtree.getMemoryRequired();
+	#if defined __APPLE__ || defined __MACH__
+			cout << "NOTE: " << ((double) mem_size * sizeof(double) / 1024.0) / 1024 << " MB RAM is required!" << endl;
+	#else
+			cout << "NOTE: " << ((double) mem_size * sizeof(double) / 1000.0) / 1000 << " MB RAM is required!" << endl;
+	#endif
+			if (mem_size >= getMemorySize()) {
+				outError("Memory required exceeds your computer RAM size!");
+			}
 		}
-
-		MPI_Barrier(MPI_COMM_WORLD);
-
-        if (mem_size >= getMemorySize()) {
-            outError("Memory required exceeds your computer RAM size!");
-        }
     }
 
     // Optimize model parameters and branch lengths using ML for the initial tree
@@ -1876,7 +1888,9 @@ void runTreeReconstruction(Params &params, string &original_model, IQTree &iqtre
 	/****************** Do tree search ***************************/
 	if (params.min_iterations > 1) {
 		iqtree.readTreeString(iqtree.bestTreeString);
-		iqtree.doTreeSearch();
+
+		if (params.mpi_treesearch == false) iqtree.doTreeSearch();
+		else iqtree.doTreeSearchMPI();
 		iqtree.setAlignment(iqtree.aln);
 	} else {
 		/* do SPR with likelihood function */
@@ -1892,7 +1906,6 @@ void runTreeReconstruction(Params &params, string &original_model, IQTree &iqtre
 			}
 		}
 	}
-
 
 	// restore pruned taxa
 	if(!params.maximum_parsimony)
@@ -1993,8 +2006,6 @@ void runTreeReconstruction(Params &params, string &original_model, IQTree &iqtre
 void runOptimizeAndReconstruction(Params &params, IQTree *tree) {
 	string original_model = params.model_name;
 	vector<ModelInfo> model_info;
-
-	printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
 
 	resetGlobalParamOnNewAln();
 	if (params.maximum_parsimony) {
@@ -3225,7 +3236,7 @@ void optimizeAlignment(IQTree * & tree, Params & params){
 
 //	tree->initTopologyByPLLRandomAdition(params); // this pll version needs further sync to work with the rest
 	
-	if (params.num_bootstrap_samples == 0) {
+	if (params.mpi_treesearch) {
 		if (MPIHelper::getInstance().isMaster()){
 			mpiout << "Creating starting tree and send it to workers..." << endl;
 			tree->computeParsimonyTree(params.out_prefix, tree->aln); // this iqtree version plays nicely with the rest
@@ -3275,7 +3286,7 @@ void optimizeAlignment(IQTree * & tree, Params & params){
 	}
 
 	tree->doSegmenting();
-    if (params.num_bootstrap_samples == 0) MPI_Barrier(MPI_COMM_WORLD);
+    if (params.mpi_treesearch) MPI_Barrier(MPI_COMM_WORLD);
 
 //	if(checkDuplicatePattern(tree))
 //		mpiout << "SECOND CHECK: Sorted alignment patterns are duplicate!" << endl;
