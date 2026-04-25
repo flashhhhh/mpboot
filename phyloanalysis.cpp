@@ -2054,6 +2054,47 @@ void doSCM(Params &params, PhyloSuperTreeUnlinked *stree) {
 			bootstrapParams.gbo_replicates = 0;
 
 			StrVector bootstrapGeneTrees = stree->createBootstrapGeneTrees();
+
+			string concenated_boot_gene_trees = "";
+			char separated_character = '@';
+
+			for (string s : bootstrapGeneTrees) {
+				concenated_boot_gene_trees += s + separated_character;
+			}
+
+			if (MPIHelper::getInstance().isWorker()) {
+				MPIHelper::getInstance().sendString(concenated_boot_gene_trees, PROC_MASTER, 10000);
+			} else {
+				string tmp_concenated_boot_gene_trees;
+
+				for (int src = 1; src < MPIHelper::getInstance().getNumProcesses(); ++src) {
+					MPIHelper::getInstance().recvString(tmp_concenated_boot_gene_trees, src, MPI_ANY_TAG);
+				}
+
+				concenated_boot_gene_trees += tmp_concenated_boot_gene_trees;
+			}
+
+			MPI_Barrier(MPI_COMM_WORLD);
+
+			if (MPIHelper::getInstance().isMaster()) {
+				for (int src = 1; src < MPIHelper::getInstance().getNumProcesses(); ++src)
+					MPIHelper::getInstance().sendString(concenated_boot_gene_trees, src, 10001);
+			} else {
+				MPIHelper::getInstance().recvString(concenated_boot_gene_trees, PROC_MASTER, MPI_ANY_TAG);
+			}
+
+			bootstrapGeneTrees.clear();
+			string cur = "";
+
+			for (int i = 0; i < (int) concenated_boot_gene_trees.size(); ++i) {
+				if (concenated_boot_gene_trees[i] != separated_character) {
+					cur += concenated_boot_gene_trees[i];
+				} else {
+					bootstrapGeneTrees.push_back(cur);
+					cur = "";
+				}
+			}
+
 			PhyloSuperTreeUnlinked *bootstrapTree = new PhyloSuperTreeUnlinked(bootstrapParams, bootstrapGeneTrees);
 			
 			bootstrapTree->doSCM();
@@ -2136,6 +2177,47 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 			bootstrapParams.gbo_replicates = 0;
 
 			StrVector bootstrapGeneTrees = stree->createBootstrapGeneTrees();
+
+			string concenated_boot_gene_trees = "";
+			char separated_character = '@';
+
+			for (string s : bootstrapGeneTrees) {
+				concenated_boot_gene_trees += s + separated_character;
+			}
+
+			if (MPIHelper::getInstance().isWorker()) {
+				MPIHelper::getInstance().sendString(concenated_boot_gene_trees, PROC_MASTER, 10000);
+			} else {
+				string tmp_concenated_boot_gene_trees;
+
+				for (int src = 1; src < MPIHelper::getInstance().getNumProcesses(); ++src) {
+					MPIHelper::getInstance().recvString(tmp_concenated_boot_gene_trees, src, MPI_ANY_TAG);
+				}
+
+				concenated_boot_gene_trees += tmp_concenated_boot_gene_trees;
+			}
+
+			MPI_Barrier(MPI_COMM_WORLD);
+
+			if (MPIHelper::getInstance().isMaster()) {
+				for (int src = 1; src < MPIHelper::getInstance().getNumProcesses(); ++src)
+					MPIHelper::getInstance().sendString(concenated_boot_gene_trees, src, 10001);
+			} else {
+				MPIHelper::getInstance().recvString(concenated_boot_gene_trees, PROC_MASTER, MPI_ANY_TAG);
+			}
+
+			bootstrapGeneTrees.clear();
+			string cur = "";
+
+			for (int i = 0; i < (int) concenated_boot_gene_trees.size(); ++i) {
+				if (concenated_boot_gene_trees[i] != separated_character) {
+					cur += concenated_boot_gene_trees[i];
+				} else {
+					bootstrapGeneTrees.push_back(cur);
+					cur = "";
+				}
+			}
+
 			PhyloSuperTreeUnlinked *bootstrapTree = new PhyloSuperTreeUnlinked(bootstrapParams, bootstrapGeneTrees);
 			
 			bootstrapTree->doMRP();

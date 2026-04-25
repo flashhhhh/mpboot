@@ -497,7 +497,10 @@ void PhyloSuperTreeUnlinked::printScoreWithConAln(GeneTree *tree, string treeTyp
 
 StrVector PhyloSuperTreeUnlinked::createBootstrapGeneTrees() {
     StrVector bootstrapGeneTrees;
-    for (auto it = begin(); it != end(); it++) {
+
+    for (int gene_tree_index : gene_tree_assigned) {
+        auto it = begin() + gene_tree_index;
+
         GeneTree* tree = (GeneTree*)(*it);
         int randIdx = random_int(tree->boot_trees.size());
         bootstrapGeneTrees.push_back(tree->getBootstrapTree(randIdx));
