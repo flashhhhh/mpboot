@@ -254,6 +254,7 @@ void PhyloSuperTreeUnlinked::dfsMRP(Node* u, Node* pa, int &time, vector<pair<in
     }
 }
 
+// MPI?
 void PhyloSuperTreeUnlinked::buildMRPMatrix() {
     StrVector seqNames = getAllSeqNames();
     StrVector sequences(seqNames.size());
@@ -300,6 +301,8 @@ void PhyloSuperTreeUnlinked::doMRP() {
     mrpTree = new GeneTree(mrpAln);
     mrpTree->treeParams = *(this->params);
     mrpTree->treeParams.gbo_replicates = 0;
+
+    MPI_Barrier(MPI_COMM_WORLD);
     runOptimizeAndReconstruction(mrpTree->treeParams, mrpTree);
     
     switch (params->mrp_type) {
@@ -393,6 +396,8 @@ void PhyloSuperTreeUnlinked::doSCM() {
     verbose_mode = VB_QUIET;
 
     int maxDegree = 0;
+
+    printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
 
     for (auto polytomy: polytomies) {
         maxDegree = max(maxDegree, polytomy->degree());

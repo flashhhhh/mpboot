@@ -2180,8 +2180,8 @@ void parseArg(int argc, char *argv[], Params &params) {
 					throw "Use -bb <#replicates>";
 				params.gbo_replicates = convert_int(argv[cnt]);
 				params.avoid_duplicated_trees = true;
-				if (params.gbo_replicates < 1000)
-					throw "#replicates must be >= 1000";
+				// if (params.gbo_replicates < 1000)
+				// 	throw "#replicates must be >= 1000";
 				params.consensus_type = CT_CONSENSUS_TREE;
 //				params.stop_condition = SC_BOOTSTRAP_CORRELATION;
 				params.stop_condition = SC_UNSUCCESS_ITERATION; // Diep: because MP already has refinement
@@ -3395,14 +3395,14 @@ int init_random(int seed) {
     if (seed < 0)
         seed = make_sprng_seed();
 #ifndef PARALLEL
-    cout << "(Using SPRNG - Scalable Parallel Random Number Generator)" << endl;
+    mpiout << "(Using SPRNG - Scalable Parallel Random Number Generator)" << endl;
     randstream = init_sprng(0, 1, seed, SPRNG_DEFAULT); /*init stream*/
     if (verbose_mode >= VB_MED) {
         print_sprng(randstream);
     }
 #else /* PARALLEL */
     if (PP_IamMaster) {
-        cout << "(Using SPRNG - Scalable Parallel Random Number Generator)" << endl;
+        mpiout << "(Using SPRNG - Scalable Parallel Random Number Generator)" << endl;
     }
     /* MPI_Bcast(&seed, 1, MPI_UNSIGNED, PP_MyMaster, MPI_COMM_WORLD); */
     randstream = init_sprng(PP_Myid, PP_NumProcs, seed, SPRNG_DEFAULT); /*initialize stream*/
@@ -3559,15 +3559,6 @@ double computePValueChiSquare(double x, int df) /* x: obtained chi-square value,
 }
 
 
-int calculateSequenceHash(string &seq) {
-	const static int modular = 1000000007;
-	int hashValue = 0;
-	for(char &c: seq) {
-		hashValue = ((long long)hashValue * 107 + (int)c) % modular;
-	}
-	return hashValue;
-}
-
 MPIHelper& MPIHelper::getInstance() {
     static MPIHelper instance;
     return instance;
@@ -3585,6 +3576,7 @@ void MPIHelper::init(int argc, char *argv[]) {
     setNumTreeReceived(0);
     setNumTreeSent(0);
     setNumNNISearch(0);
+	MPIOut::getInstance().setDisableOutput(false);
 }
 
 void MPIHelper::finalize() {
@@ -3640,16 +3632,43 @@ bool MPIHelper::gotMessage() {
         return false;
 }
 
+int MPIHelper::getPendingMessageSource() {
+	assert(gotMessage());
+	int flag = 0;
+    MPI_Status status;
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+	return status.MPI_SOURCE;
+}
+
 void MPIHelper::sendString(string &str, int dest, int tag) {
     char *buf = (char*)str.c_str();
     MPI_Send(buf, str.length()+1, MPI_CHAR, dest, tag, MPI_COMM_WORLD);
 }
 
 void MPIHelper::asyncSendString(string &str, int dest, int tag, MPI_Request *req) {
-	if (async_buf != nullptr) delete [] async_buf;
-	async_buf = new char[str.length()+1];
+	// if (async_buf != nullptr) delete [] async_buf;
+	char* async_buf = new char[str.length()+1];
 	strcpy(async_buf, str.c_str());
 	MPI_Isend(async_buf, str.length()+1, MPI_CHAR, dest, tag, MPI_COMM_WORLD, req);
+}
+
+void MPIHelper::asyncSendInts(vector<int> &vec, int dest, int tag, MPI_Request *req) {
+	int* buf = new int[vec.size()];
+	copy(vec.begin(), vec.end(), buf);
+	MPI_Isend(buf, vec.size(), MPI_INT, dest, tag, MPI_COMM_WORLD, req);
+}
+
+int MPIHelper::recvInts(vector<int> &vec, int src, int tag) {
+	MPI_Status status;
+	MPI_Probe(src, tag, MPI_COMM_WORLD, &status);
+	int msgCount;
+	MPI_Get_count(&status, MPI_INT, &msgCount);
+	// receive the message
+	int *recvBuffer = new int[msgCount];
+	MPI_Recv(recvBuffer, msgCount, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+	vec = vector<int>(recvBuffer, recvBuffer + msgCount);
+	delete[] recvBuffer;
+	return status.MPI_SOURCE;
 }
 
 int MPIHelper::recvString(string &str, int src, int tag) {
@@ -3694,4 +3713,22 @@ string MPIHelper::scatterBootstrapTrees(vector<vector<tuple<int, int, string>>> 
 
 MPIHelper::~MPIHelper() {
 //    cleanUpMessages();
+}
+int calculateSequenceHash(string &seq) {
+	const static int modular = 1000000007;
+	int hashValue = 0;
+	for(char &c: seq) {
+		hashValue = ((long long)hashValue * 107 + (int)c) % modular;
+	}
+	return hashValue;
+}
+
+void concatMPIFilesIntoSingleFile(string output) {
+	ofstream fout(output);
+	for(int i = 0; i < MPIHelper::getInstance().getNumProcesses(); ++i) {
+		ifstream istr(output + MPIHelper::getInstance().getProcessSuffix(i));
+		fout << istr.rdbuf();
+		istr.close();
+	}
+	fout.close();
 }
