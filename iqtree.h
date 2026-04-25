@@ -261,6 +261,8 @@ public:
      */
     double doTreeSearch();
 
+    double doTreeSearchMPI();
+
     /**
      *  Wrapper function that uses either PLL or IQ-TREE to optimize the branch length
      *  @param maxTraversal
@@ -566,6 +568,8 @@ public:
     * if -opt_btree is ON along with -bb -mpars
     */
    void optimizeBootTrees();
+
+   void optimizeBootTreesMPI();
 
    /**
     * Diep: to generate the bootstrap tree set

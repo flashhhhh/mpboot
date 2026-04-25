@@ -663,6 +663,8 @@ struct Params {
      */
     bool newick_extended_format;
 
+    bool mpi_treesearch;
+
     /** remove all-gap sequences in partition model to account for terrace default: TRUE */
     bool remove_empty_seq;
 
