@@ -191,38 +191,48 @@ void PhyloSuperTreeUnlinked::printGeneTrees() {
 
             concentrated_tree_string += treeString;
         }
+    }
 
-        vector<pair<int, string> > index_treeString;
-        int ptr = 0;
-        int id = 0;
+    MPI_Barrier(MPI_COMM_WORLD);
 
-        while (ptr < concentrated_tree_string.size()) {
-            int index = 0;
-            while (concentrated_tree_string[ptr] != separated_character) {
-                index = index * 10 + concentrated_tree_string[ptr] - '0';
-                ++ptr;
-            }
-            ++ptr;
-
-            string treeString = "";
-            while (concentrated_tree_string[ptr] != separated_character) {
-                treeString += concentrated_tree_string[ptr];
-                ++ptr;
-            }
-            ++ptr;
-
-            index_treeString.emplace_back(index, treeString);
-            outFile << treeString;
-
-            // Add tree string to master gene tree set
-            // stringstream ss;
-            // ss << treeString;
-
-            GeneTree* tree = (GeneTree*)(*(begin() + id));
-            tree->readTreeString(treeString);
-            
-            ++id;
+    if (MPIHelper::getInstance().isMaster()) {
+        for (int src = 1; src < MPIHelper::getInstance().getNumProcesses(); ++src) {
+            MPIHelper::getInstance().sendString(concentrated_tree_string, src, TREE_TAG);
         }
+    } else {
+        MPIHelper::getInstance().recvString(concentrated_tree_string, PROC_MASTER, MPI_ANY_TAG);
+    }
+
+    vector<pair<int, string> > index_treeString;
+    int ptr = 0;
+    int id = 0;
+
+    while (ptr < concentrated_tree_string.size()) {
+        int index = 0;
+        while (concentrated_tree_string[ptr] != separated_character) {
+            index = index * 10 + concentrated_tree_string[ptr] - '0';
+            ++ptr;
+        }
+        ++ptr;
+
+        string treeString = "";
+        while (concentrated_tree_string[ptr] != separated_character) {
+            treeString += concentrated_tree_string[ptr];
+            ++ptr;
+        }
+        ++ptr;
+
+        index_treeString.emplace_back(index, treeString);
+        outFile << treeString;
+
+        // Add tree string to master gene tree set
+        // stringstream ss;
+        // ss << treeString;
+
+        GeneTree* tree = (GeneTree*)(*(begin() + id));
+        tree->readTreeString(treeString);
+        
+        ++id;
     }
 
     outFile.close();
