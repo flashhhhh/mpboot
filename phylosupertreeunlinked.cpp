@@ -157,6 +157,8 @@ void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
+
+    printf("Process %d ends run gene trees reconstruction\n", MPIHelper::getInstance().getProcessID());
 }
 
 void PhyloSuperTreeUnlinked::printGeneTrees() {
@@ -304,7 +306,9 @@ void PhyloSuperTreeUnlinked::doMRP() {
     mrpTree->treeParams.gbo_replicates = 0;
 
     MPI_Barrier(MPI_COMM_WORLD);
+    printf("Process %d start run reconstruction in doMRP\n", MPIHelper::getInstance().getProcessID());
     runOptimizeAndReconstruction(mrpTree->treeParams, mrpTree);
+    printf("Process %d end run reconstruction in doMRP\n", MPIHelper::getInstance().getProcessID());
     
     switch (params->mrp_type) {
         case MRPType::MRP_GREEDY: {
@@ -337,6 +341,8 @@ void PhyloSuperTreeUnlinked::doMRP() {
     for (auto taxon: taxa) {
         taxon->name = allSeqNames[stoi(taxon->name)];
     }
+
+    printf("Process %d end doMRP\n", MPIHelper::getInstance().getProcessID());
 }
 
 void PhyloSuperTreeUnlinked::printResultWithMRPTree() {

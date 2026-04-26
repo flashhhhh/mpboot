@@ -2172,6 +2172,8 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
         verbose_mode = VB_QUIET;
 
 		for (int i = 0; i < params.gbo_replicates; ++i) {
+			printf("Process %d start do bootstrap\n", MPIHelper::getInstance().getProcessID());
+
 			Params bootstrapParams = params;
 			bootstrapParams.gbo_replicates = 0;
 
@@ -2183,6 +2185,8 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 			for (string s : bootstrapGeneTrees) {
 				concenated_boot_gene_trees += s + separated_character;
 			}
+
+			printf("Process %d start sync concenated trees\n", MPIHelper::getInstance().getProcessID());
 
 			if (MPIHelper::getInstance().isWorker()) {
 				MPIHelper::getInstance().sendString(concenated_boot_gene_trees, PROC_MASTER, 10000);
@@ -2196,6 +2200,7 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 				concenated_boot_gene_trees += tmp_concenated_boot_gene_trees;
 			}
 
+			printf("Process %d bruh here\n", MPIHelper::getInstance().getProcessID());
 			MPI_Barrier(MPI_COMM_WORLD);
 
 			if (MPIHelper::getInstance().isMaster()) {
@@ -2218,6 +2223,8 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 			}
 
 			PhyloSuperTreeUnlinked *bootstrapTree = new PhyloSuperTreeUnlinked(bootstrapParams, bootstrapGeneTrees);
+
+			printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
 			
 			bootstrapTree->doMRP();
 
@@ -2608,6 +2615,7 @@ void runPhyloAnalysis(Params &params) {
 			}
 			resultAnalysisFile += "  Draw SCM tree:                             " + outPrefix + ".draw\n";
 		} else if (params.mrp_type != MRP_NONE) {
+			printf("Process %d starts do MRP\n", MPIHelper::getInstance().getProcessID());
 			doMRP(params, stree);
 			resultAnalysisFile += "  MRP tree:                                  " + outPrefix + ".treefile\n";
 			resultAnalysisFile += "  Draw MRP tree:                             " + outPrefix + ".draw\n";
