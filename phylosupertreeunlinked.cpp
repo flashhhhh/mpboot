@@ -307,6 +307,8 @@ void PhyloSuperTreeUnlinked::doMRP() {
 
     MPI_Barrier(MPI_COMM_WORLD);
     printf("Process %d start run reconstruction in doMRP\n", MPIHelper::getInstance().getProcessID());
+
+    mrpTree->treeParams.mpi_treesearch = true;
     runOptimizeAndReconstruction(mrpTree->treeParams, mrpTree);
     printf("Process %d end run reconstruction in doMRP\n", MPIHelper::getInstance().getProcessID());
     
