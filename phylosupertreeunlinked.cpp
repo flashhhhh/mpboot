@@ -336,42 +336,79 @@ void PhyloSuperTreeUnlinked::dfsMRP(Node* u, Node* pa, int &time, vector<pair<in
 void PhyloSuperTreeUnlinked::buildMRPMatrix() {
     StrVector seqNames = getAllSeqNames();
     StrVector sequences(seqNames.size());
-    
-    for (auto it = begin(); it != end(); it++) {
-        GeneTree* tree = (GeneTree*)(*it);
-        int time = 0;
-        vector<pair<int, int>> eulerInternalBranch;
-        map<string, int> leafIndex;
 
-        tree->setRootLeaf(NULL);
-        assert(tree->root->isLeaf());
+    auto& chk = Checkpoint::getInstance();
 
-        leafIndex[tree->root->name] = 0;
-        dfsMRP(tree->root->neighbors[0]->node, tree->root, time, eulerInternalBranch, leafIndex);
+    string names_key = "MrpAln_names" + to_string(index);
+    string seqs_key = "MrpAln_seqs" + to_string(index);
 
-        for (int i = 0; i < seqNames.size(); ++i) {
-            if (leafIndex.find(seqNames[i]) != leafIndex.end()) {
+    string names_str = chk.getString(names_key, "");
+    string seqs_str = chk.getString(seqs_key, "");
 
-                int leafInd = leafIndex[seqNames[i]];
-                for (auto [in, out] : eulerInternalBranch) {
-                    sequences[i] += (leafInd >= in && leafInd <= out) ? '1' : '0';
+    if (!names_str.empty() && !seqs_str.empty()) {
+        StrVector loaded_names;
+        StrVector loaded_seqs;
+        
+        std::istringstream iss_names(names_str);
+        string name;
+        while (iss_names >> name) {
+            loaded_names.push_back(name);
+        }
+
+        std::istringstream iss_seqs(seqs_str);
+        string seq;
+        while (iss_seqs >> seq) {
+            loaded_seqs.push_back(seq);
+        }
+
+        mrpAln = new Alignment(loaded_names, loaded_seqs, params->sequence_type);
+    } else {
+        for (auto it = begin(); it != end(); it++) {
+            GeneTree* tree = (GeneTree*)(*it);
+            int time = 0;
+            vector<pair<int, int>> eulerInternalBranch;
+            map<string, int> leafIndex;
+
+            tree->setRootLeaf(NULL);
+            assert(tree->root->isLeaf());
+
+            leafIndex[tree->root->name] = 0;
+            dfsMRP(tree->root->neighbors[0]->node, tree->root, time, eulerInternalBranch, leafIndex);
+
+            for (int i = 0; i < seqNames.size(); ++i) {
+                if (leafIndex.find(seqNames[i]) != leafIndex.end()) {
+
+                    int leafInd = leafIndex[seqNames[i]];
+                    for (auto [in, out] : eulerInternalBranch) {
+                        sequences[i] += (leafInd >= in && leafInd <= out) ? '1' : '0';
+                    }
+
+                } else {
+                    sequences[i] += string(eulerInternalBranch.size(), '?');
                 }
-
-            } else {
-                sequences[i] += string(eulerInternalBranch.size(), '?');
             }
         }
+
+        for (int i = 0; i < seqNames.size(); ++i) {
+            assert(seqNameToIndex[seqNames[i]] == i);
+            seqNames[i] = to_string(i);
+        }
+
+        mrpAln = new Alignment(seqNames, sequences, params->sequence_type);
+
+        cout << "\nMRP: MRP matrix built with " << mrpAln->getNSeq() << " sequences and " << mrpAln->getNSite() << " characters\n";
+        // mrpAln->printPhylip(cout);
+
+        for (size_t i = 0; i < seqNames.size(); ++i) {
+            names_str += seqNames[i] + " ";
+            seqs_str += sequences[i] + " ";
+        }
+
+        chk.putString(names_key, names_str);
+        chk.putString(seqs_key, seqs_str);
+
+        chk.dump();
     }
-
-    for (int i = 0; i < seqNames.size(); ++i) {
-        assert(seqNameToIndex[seqNames[i]] == i);
-        seqNames[i] = to_string(i);
-    }
-
-    mrpAln = new Alignment(seqNames, sequences, params->sequence_type);
-
-    cout << "\nMRP: MRP matrix built with " << mrpAln->getNSeq() << " sequences and " << mrpAln->getNSite() << " characters\n";
-    // mrpAln->printPhylip(cout);
 }
 
 void PhyloSuperTreeUnlinked::doMRP() {
@@ -380,46 +417,61 @@ void PhyloSuperTreeUnlinked::doMRP() {
     mrpTree->treeParams = *(this->params);
     mrpTree->treeParams.gbo_replicates = 0;
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    printf("Process %d start run reconstruction in doMRP\n", MPIHelper::getInstance().getProcessID());
+    auto& chk = Checkpoint::getInstance();
 
-    mrpTree->treeParams.mpi_treesearch = true;
-    runOptimizeAndReconstruction(mrpTree->treeParams, mrpTree);
-    printf("Process %d end run reconstruction in doMRP\n", MPIHelper::getInstance().getProcessID());
-    
-    switch (params->mrp_type) {
-        case MRPType::MRP_GREEDY: {
-            StrVector bestTrees = mrpTree->candidateTrees.getHighestScoringTrees(params->popSize);
-            StringIntMap treels;
-            
-            for (int i = 0; i < bestTrees.size(); ++i) {
-                treels[bestTrees[i]] = i;
+    string bootstrap_tree_key = "BootstrapTree" + to_string(index);
+    string bootstrap_tree_str = "";
+
+    string saved_tree = chk.getString(bootstrap_tree_key, "");
+
+    if (!saved_tree.empty()) {
+        mrpTree->readTreeString(saved_tree);
+    } else {
+        MPI_Barrier(MPI_COMM_WORLD);
+        printf("Process %d start run reconstruction in doMRP\n", MPIHelper::getInstance().getProcessID());
+
+        mrpTree->treeParams.mpi_treesearch = true;
+        runOptimizeAndReconstruction(mrpTree->treeParams, mrpTree);
+        printf("Process %d end run reconstruction in doMRP\n", MPIHelper::getInstance().getProcessID());
+        
+        switch (params->mrp_type) {
+            case MRPType::MRP_GREEDY: {
+                StrVector bestTrees = mrpTree->candidateTrees.getHighestScoringTrees(params->popSize);
+                StringIntMap treels;
+                
+                for (int i = 0; i < bestTrees.size(); ++i) {
+                    treels[bestTrees[i]] = i;
+                }
+                
+                IntVector weight(treels.size(), 1);
+
+                string greedyTree = computeConsensusTreeNoFileIO(treels, weight, params->tree_max_count, 
+                    params->split_threshold, params->split_weight_threshold, params);
+
+                mrpTree->readTreeString(greedyTree);
+                break;
             }
-            
-            IntVector weight(treels.size(), 1);
+            case MRPType::MRP_RANDOM: {
+                mrpTree->readTreeString(mrpTree->candidateTrees.getRandCandTree());
+                break;
+            }
+            case MRPType::MRP_BEST: {
+                // Do nothing
+                break;
+            }
+        }
 
-            string greedyTree = computeConsensusTreeNoFileIO(treels, weight, params->tree_max_count, 
-                params->split_threshold, params->split_weight_threshold, params);
+        printf("Process %d end doMRP\n", MPIHelper::getInstance().getProcessID());
 
-            mrpTree->readTreeString(greedyTree);
-            break;
-        }
-        case MRPType::MRP_RANDOM: {
-            mrpTree->readTreeString(mrpTree->candidateTrees.getRandCandTree());
-            break;
-        }
-        case MRPType::MRP_BEST: {
-            // Do nothing
-            break;
-        }
+        bootstrap_tree_str = mrpTree->getTreeString();
+        chk.putString(bootstrap_tree_key, bootstrap_tree_str);
     }
+
     NodeVector taxa;
     mrpTree->getTaxa(taxa);
     for (auto taxon: taxa) {
         taxon->name = allSeqNames[stoi(taxon->name)];
     }
-
-    printf("Process %d end doMRP\n", MPIHelper::getInstance().getProcessID());
 }
 
 void PhyloSuperTreeUnlinked::printResultWithMRPTree() {

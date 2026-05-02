@@ -2157,6 +2157,7 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 	auto& chk = Checkpoint::getInstance();
     chk.startBlock("MRP");
 
+	stree->index = -1;
 	stree->doMRP();
 
 	if (params.aln_file && params.partition_file && params.gbo_replicates > 0) {
@@ -2227,23 +2228,11 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 			}
 
 			PhyloSuperTreeUnlinked *bootstrapTree = new PhyloSuperTreeUnlinked(bootstrapParams, bootstrapGeneTrees);
+			bootstrapTree->index = i;
 
 			printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
 
-			string bootstrap_tree_key = "BootstrapTree" + to_string(i);
-			string bootstrap_tree_str = "";
-
-			// string saved_tree = chk.getString(bootstrap_tree_key, "");
-			string saved_tree = "";
-
-			if (!saved_tree.empty()) {
-				bootstrapTree->mrpTree->readTreeString(saved_tree);
-			} else {
-				bootstrapTree->doMRP();
-
-				bootstrap_tree_str = bootstrapTree->mrpTree->getTreeString();
-				chk.putString(bootstrap_tree_key, bootstrap_tree_str);
-			}
+			bootstrapTree->doMRP();
 
 			bootstrapTree->mrpTree->setNodeIdByMapName(stree->seqNameToIndex);
 			assert(bootstrapTree->mrpTree->root->isLeaf());

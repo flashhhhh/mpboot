@@ -47,6 +47,8 @@ public:
 
     GeneTree *scmTree = NULL;
 
+    int index;
+
     string firstSCMTree;
 
     StrVector allSeqNames;
