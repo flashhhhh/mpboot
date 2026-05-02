@@ -42,6 +42,7 @@
 #include "model/modelbin.h"
 #include "model/modelcodon.h"
 #include "stoprule.h"
+#include "checkpoint.h"
 
 #include "mtreeset.h"
 #include "mexttree.h"
@@ -2153,6 +2154,9 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 	double startCPUTime = getCPUTime();
 	double startRealTime = getRealTime();
 
+	auto& chk = Checkpoint::getInstance();
+    chk.startBlock("MRP");
+
 	stree->doMRP();
 
 	if (params.aln_file && params.partition_file && params.gbo_replicates > 0) {
@@ -2225,8 +2229,21 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 			PhyloSuperTreeUnlinked *bootstrapTree = new PhyloSuperTreeUnlinked(bootstrapParams, bootstrapGeneTrees);
 
 			printf("Process %d is here\n", MPIHelper::getInstance().getProcessID());
-			
-			bootstrapTree->doMRP();
+
+			string bootstrap_tree_key = "BootstrapTree" + to_string(i);
+			string bootstrap_tree_str = "";
+
+			// string saved_tree = chk.getString(bootstrap_tree_key, "");
+			string saved_tree = "";
+
+			if (!saved_tree.empty()) {
+				bootstrapTree->mrpTree->readTreeString(saved_tree);
+			} else {
+				bootstrapTree->doMRP();
+
+				bootstrap_tree_str = bootstrapTree->mrpTree->getTreeString();
+				chk.putString(bootstrap_tree_key, bootstrap_tree_str);
+			}
 
 			bootstrapTree->mrpTree->setNodeIdByMapName(stree->seqNameToIndex);
 			assert(bootstrapTree->mrpTree->root->isLeaf());
@@ -2249,6 +2266,8 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 			}
 			
 			verbose_mode = VB_QUIET;
+
+			chk.dump();
 		}
 
 		verbose_mode = saved_mode;
@@ -2272,6 +2291,9 @@ void doMRP(Params &params, PhyloSuperTreeUnlinked *stree) {
 	}
 
 	stree->printResultWithMRPTree();
+
+	chk.endBlock();
+    chk.dump();
 
 	cout << "\nTotal CPU time for MRP: "
 			<< convert_time(getCPUTime() - startCPUTime) << " seconds." << endl;
@@ -2585,6 +2607,12 @@ void runPhyloAnalysis(Params &params) {
 
 	}
 
+	auto& chk = Checkpoint::getInstance();
+	string ckp_file = params.out_prefix;
+	ckp_file += ".ckp";
+    
+    chk.setFilename(ckp_file);
+	chk.read();
 
 	string original_model = params.model_name;
 
@@ -2729,6 +2757,8 @@ void runPhyloAnalysis(Params &params) {
 		// the classical non-parameter bootstrap (SBS)
 		runStandardBootstrap(params, original_model, alignment, tree);
 	}
+
+	chk.endBlock();
 
     delete tree->aln;
 	delete tree;

@@ -485,6 +485,7 @@ void GeneTree::setNodeIdByMapName(const map<string, int> &seqNameToIndex) {
 
 string GeneTree::getBootstrapTree(int index) {
     if (bootstrapTrees.empty()) {
+        cout << "Fuckkk: " << treels.size() <<'\n';
         for (const auto &[tree, id]: treels) {
             assert(aln);
             

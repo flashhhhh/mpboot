@@ -1,65 +1,57 @@
-/*
- * checkpoint.h
- *
- *  Created on: Jun 12, 2014
- *      Author: minh
- */
+#ifndef CHECKPOINT_H
+#define CHECKPOINT_H
 
-#ifndef CHECKPOINT_H_
-#define CHECKPOINT_H_
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
+#include <vector>
 
-#include "tools.h"
+// Định nghĩa ký tự phân cách khối (Block Separator)
+const char CKP_SEPARATOR = '!';
 
-/**
- * Checkpoint as map from key strings to value strings
- */
-class Checkpoint : public map<string, string> {
+class Checkpoint : public std::map<std::string, std::string> {
+private:
+    std::string checkpoint_filename;
+    std::string current_prefix; // Lưu prefix hiện tại (VD: "StopRule!")
+
+    Checkpoint() : current_prefix("") {}
+    ~Checkpoint() {}
+    Checkpoint(const Checkpoint&) = delete;
+    Checkpoint& operator=(const Checkpoint&) = delete;
+
+    std::string trim(const std::string& str);
+
+    // Xử lý key: Nếu đang trong block, tự động nối thêm prefix
+    std::string getFullKey(const std::string& key);
+
 public:
-	Checkpoint();
-	/**
-	 * @param filename file name
-	 */
-	void setFileName(string filename);
-	/**
-	 * load checkpoint information from file
-	 */
-	void load();
+    static Checkpoint& getInstance() {
+        static Checkpoint instance;
+        return instance;
+    }
 
-	/**
-	 * commit checkpoint information into file
-	 */
-	void commit();
+    void setFilename(const std::string& filename);
 
-	/**
-	 * @return true if checkpoint contains the key
-	 * @param key key to search for
-	 */
-	bool containsKey(string key);
+    // --- XỬ LÝ BLOCK ---
+    void startBlock(const std::string& name);
+    void endBlock();
 
-	/**
-	 * series of get functions
-	 */
-	template<class T>
-	void get(string key, T& value);
+    // --- CORE IO ---
+    bool read(); 
+    void dump(); 
 
-	bool getBool(string key);
-	char getChar(string key);
-	double getDouble(string key);
-	int getInt(string key);
+    // --- CÁC HÀM GET ---
+    int getInt(const std::string& key, int default_val = 0);
+    double getDouble(const std::string& key, double default_val = 0.0);
+    bool getBool(const std::string& key, bool default_val = false);
+    std::string getString(const std::string& key, const std::string& default_val = "");
 
-
-	/**
-	 * series of put functions
-	 */
-	template<class T>
-	void put(string key, T value);
-
-	template<class T>
-	void putArray(string key, int num, T* value);
-
-	virtual ~Checkpoint();
-
-	string filename;
+    // --- CÁC HÀM PUT ---
+    void putInt(const std::string& key, int val);
+    void putDouble(const std::string& key, double val);
+    void putBool(const std::string& key, bool val);
+    void putString(const std::string& key, const std::string& val);
 };
 
-#endif /* CHECKPOINT_H_ */
+#endif // CHECKPOINT_H

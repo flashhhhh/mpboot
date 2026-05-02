@@ -1,4 +1,5 @@
 #include "phylosupertreeunlinked.h"
+#include "checkpoint.h"
 #include <queue>
 
 PhyloSuperTreeUnlinked::PhyloSuperTreeUnlinked(Params &params): PhyloSuperTree(params, true) {
@@ -137,6 +138,9 @@ void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
     }
 
     int processID = MPIHelper::getInstance().getProcessID();
+    
+    auto& chk = Checkpoint::getInstance();
+    chk.startBlock("GeneTree");
 
     for (int gene_tree_index : gene_tree_assigned) {
         auto it = begin() + gene_tree_index;
@@ -149,12 +153,83 @@ void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
         verbose_mode = VB_QUIET;
 
         GeneTree* tree = (GeneTree*)(*it);
-        tree->treeParams.mpi_treesearch = false;
-        runOptimizeAndReconstruction(tree->treeParams, tree);
+        string tree_key = "Tree" + to_string(gene_tree_index);
+        string boot_trees_key = "BootTrees" + to_string(gene_tree_index);
+        string boot_tree_strings_key = "BootTreeStrings" + to_string(gene_tree_index);
+        string treels_key = "Treels" + to_string(gene_tree_index);
+
+        string saved_tree = chk.getString(tree_key, "");
+
+        if (!saved_tree.empty()) {
+            tree->readTreeString(saved_tree);
+
+            string boot_trees_str = chk.getString(boot_trees_key, "");
+            
+            tree->boot_trees.clear();
+            std::istringstream iss_trees(boot_trees_str);
+            int tree_val;
+            while (iss_trees >> tree_val) {
+                tree->boot_trees.push_back(tree_val);
+            }
+
+            string boot_tree_strings_str = chk.getString(boot_tree_strings_key, "");
+            
+            tree->boot_tree_strings.clear();
+            std::istringstream iss_strings(boot_tree_strings_str);
+            string tree_str_val;
+            while (iss_strings >> tree_str_val) {
+                tree->boot_tree_strings.push_back(tree_str_val);
+            }
+
+            string treels_str = chk.getString(treels_key, "");
+            tree->treels.clear();
+            std::istringstream iss_treels(treels_str);
+            string pair_str;
+            
+            while (iss_treels >> pair_str) {
+                size_t pos = pair_str.find('!');
+                if (pos != string::npos) {
+                    string key = pair_str.substr(0, pos);
+                    string val_str = pair_str.substr(pos + 1);
+                    
+                    int value = std::stoi(val_str); 
+                    
+                    tree->treels[key] = value;
+                }
+            }
+        } else {
+            tree->treeParams.mpi_treesearch = false;
+            runOptimizeAndReconstruction(tree->treeParams, tree);
+
+            string tree_str = tree->getTreeString();
+            chk.putString(tree_key, tree_str);
+
+            string boot_trees_str = "";
+            for (int i = 0; i < (int) tree->boot_trees.size(); ++i)
+                boot_trees_str += to_string(tree->boot_trees[i]) + " ";
+            
+            chk.putString(boot_trees_key, boot_trees_str);
+
+            string boot_tree_strings_str = "";
+            for (int i = 0; i < (int) tree->boot_trees.size(); ++i)
+                boot_tree_strings_str += tree->boot_tree_strings[i] + " ";
+
+            chk.putString(boot_tree_strings_key, boot_tree_strings_str);
+
+            string treels_str = "";
+            for (auto it : tree->treels) {
+                treels_str += it.first + "!" + to_string(it.second) + " ";
+            }
+
+            chk.putString(treels_key, treels_str);
+        }
         
         verbose_mode = saved_mode;
         cout << "\n---------- Reconstruction of gene tree " << (it - begin()) << " done ----------\n\n";
     }
+
+    chk.endBlock();
+    chk.dump();
 
     MPI_Barrier(MPI_COMM_WORLD);
 
