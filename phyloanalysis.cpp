@@ -2031,6 +2031,10 @@ void doSCM(Params &params, PhyloSuperTreeUnlinked *stree) {
 	double startCPUTime = getCPUTime();
 	double startRealTime = getRealTime();
 
+	auto& chk = Checkpoint::getInstance();
+    chk.startBlock("SCM");
+
+	stree->index = -1;
 	stree->doSCM();
 
 	if (params.aln_file && params.partition_file && params.gbo_replicates > 0) {
@@ -2097,6 +2101,7 @@ void doSCM(Params &params, PhyloSuperTreeUnlinked *stree) {
 
 			PhyloSuperTreeUnlinked *bootstrapTree = new PhyloSuperTreeUnlinked(bootstrapParams, bootstrapGeneTrees);
 			
+			bootstrapTree->index = i;
 			bootstrapTree->doSCM();
 
 			bootstrapTree->scmTree->setNodeIdByMapName(stree->seqNameToIndex);
@@ -2120,6 +2125,8 @@ void doSCM(Params &params, PhyloSuperTreeUnlinked *stree) {
 			}
 			
 			verbose_mode = VB_QUIET;
+
+			chk.dump();
 		}
 
 		verbose_mode = saved_mode;
@@ -2143,6 +2150,9 @@ void doSCM(Params &params, PhyloSuperTreeUnlinked *stree) {
 	}
 
 	stree->printResultWithSCMTree();
+
+	chk.endBlock();
+    chk.dump();
 
 	cout << "\nTotal CPU time for SCM: "
 			<< convert_time(getCPUTime() - startCPUTime) << " seconds." << endl;

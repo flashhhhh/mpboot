@@ -226,10 +226,11 @@ void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
         
         verbose_mode = saved_mode;
         cout << "\n---------- Reconstruction of gene tree " << (it - begin()) << " done ----------\n\n";
+
+        chk.dump();
     }
 
     chk.endBlock();
-    chk.dump();
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -404,8 +405,10 @@ void PhyloSuperTreeUnlinked::buildMRPMatrix() {
             seqs_str += sequences[i] + " ";
         }
 
-        chk.putString(names_key, names_str);
-        chk.putString(seqs_key, seqs_str);
+        if (index >= 0) {
+            chk.putString(names_key, names_str);
+            chk.putString(seqs_key, seqs_str);
+        }
 
         chk.dump();
     }
@@ -463,8 +466,10 @@ void PhyloSuperTreeUnlinked::doMRP() {
 
         printf("Process %d end doMRP\n", MPIHelper::getInstance().getProcessID());
 
-        bootstrap_tree_str = mrpTree->getTreeString();
-        chk.putString(bootstrap_tree_key, bootstrap_tree_str);
+        if (index >= 0) {
+            bootstrap_tree_str = mrpTree->getTreeString();
+            chk.putString(bootstrap_tree_key, bootstrap_tree_str);
+        }
     }
 
     NodeVector taxa;
@@ -509,13 +514,29 @@ void PhyloSuperTreeUnlinked::doSCM() {
 
     cout << fixed << setprecision(2) << "SCM: Scaffold density: " << 1.0 * scaffoldDensity / allSeqNames.size() << "\n";
 
+    auto& chk = Checkpoint::getInstance();
+
+    // string saved_scm_tree = chk.getString("SCMTree" + to_string(index), "");
+    string saved_scm_refined_tree = chk.getString("SCMRefinedTree" + to_string(index), "");
+
+    if (!saved_scm_refined_tree.empty()) {
+        scmTree = new GeneTree();
+        scmTree->readTreeString(saved_scm_refined_tree);
+        firstSCMTree = chk.getString("FirstSCMTree" + to_string(index), "");
+
+        return;
+    }
+
     StrictConsensusMerge scm(sourcesTree, seqNameToIndex);
     scmTree = scm.getSCMTree();
     scmTree->reInitializeTree();
 
-    cout << fixed << setprecision(2) << "SCM: Resolution of SCM Tree: " << 1.0 * (scmTree->nodeNum - scmTree->leafNum - 1) / (scmTree->leafNum - 3) << "\n"; 
-
     firstSCMTree = scmTree->getTreeString();
+
+    chk.putString("FirstSCMTree" + to_string(index), firstSCMTree);
+    chk.dump();
+
+    cout << fixed << setprecision(2) << "SCM: Resolution of SCM Tree: " << 1.0 * (scmTree->nodeNum - scmTree->leafNum - 1) / (scmTree->leafNum - 3) << "\n"; 
 
     if (params->mrp_type == MRPType::MRP_NONE) {
         delete scmTree;
@@ -559,6 +580,7 @@ void PhyloSuperTreeUnlinked::doSCM() {
         }
         
         if (!newTree->empty()) {
+            newTree->index = -1;
             newTree->doMRP();
             GeneTree *mrpTree = newTree->mrpTree;
             mrpTree->delabelTree(delabel);
@@ -579,6 +601,9 @@ void PhyloSuperTreeUnlinked::doSCM() {
     + " and max degree " + to_string(maxDegree) << "\n";
 
     cout << fixed << setprecision(2) << "SCM: Resolution of refined SCM Tree: " << 1.0 * (scmTree->nodeNum - scmTree->leafNum - 1) / (scmTree->leafNum - 3) << "\n";
+
+    chk.putString("SCMRefinedTree" + to_string(index), scmTree->getTreeString());
+    chk.dump();
 }
 
 void PhyloSuperTreeUnlinked::printResultWithSCMTree() {
