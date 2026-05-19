@@ -2608,7 +2608,7 @@ void runPhyloAnalysis(Params &params) {
 
 	auto& chk = Checkpoint::getInstance();
 	string ckp_file = params.out_prefix;
-	ckp_file += ".ckp";
+	ckp_file += to_string(MPIHelper::getInstance().getProcessID()) + ".ckp";
     
     chk.setFilename(ckp_file);
 	chk.read();
