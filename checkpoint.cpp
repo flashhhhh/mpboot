@@ -36,15 +36,15 @@ bool Checkpoint::read() {
 
     this->clear();
     std::string line;
-    std::string file_prefix = ""; 
+    
+    // Dùng map để lưu prefix dựa trên số lượng khoảng trắng thụt lề
+    std::map<size_t, std::string> prefix_stack; 
 
     while (std::getline(in, line)) {
         if (line.empty() || line[0] == '#' || line.find("---") == 0) continue;
 
         size_t indent = line.find_first_not_of(" \t");
-        if (indent == 0) {
-            file_prefix = ""; 
-        }
+        if (indent == std::string::npos) continue;
 
         std::string trimmed_line = trim(line);
         size_t colon_pos = trimmed_line.find(':');
@@ -54,11 +54,19 @@ bool Checkpoint::read() {
             std::string value = trim(trimmed_line.substr(colon_pos + 1));
             
             if (value.empty()) {
-                file_prefix = key + CKP_SEPARATOR;
+                // Lưu prefix tại đúng mức thụt lề hiện tại
+                prefix_stack[indent] = key + CKP_SEPARATOR;
             } else {
-                (*this)[file_prefix + key] = value;
-
-                printf("Key: %s, value: %s\n", (file_prefix + key).c_str(), value.c_str());
+                // Nối tất cả các prefix của các level cao hơn (indent nhỏ hơn indent hiện tại)
+                std::string current_prefix = "";
+                for (auto const& [level, pref] : prefix_stack) {
+                    if (level < indent) {
+                        current_prefix += pref;
+                    }
+                }
+                
+                (*this)[current_prefix + key] = value;
+                printf("Key: %s, value: %s\n", (current_prefix + key).c_str(), value.c_str());
             }
         }
     }

@@ -161,6 +161,8 @@ void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
         string saved_tree = chk.getString(tree_key, "");
 
         if (!saved_tree.empty()) {
+            printf("Gene tree %d restored successfully!\n", gene_tree_index);
+
             tree->readTreeString(saved_tree);
 
             string boot_trees_str = chk.getString(boot_trees_key, "");
@@ -227,7 +229,7 @@ void PhyloSuperTreeUnlinked::runGeneTreesReconstruction() {
         verbose_mode = saved_mode;
         cout << "\n---------- Reconstruction of gene tree " << (it - begin()) << " done ----------\n\n";
 
-        chk.dump();
+        // chk.dump();
     }
 
     chk.endBlock();

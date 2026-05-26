@@ -2611,7 +2611,7 @@ void runPhyloAnalysis(Params &params) {
 	ckp_file += to_string(MPIHelper::getInstance().getProcessID()) + ".ckp";
     
     chk.setFilename(ckp_file);
-	chk.read();
+	if (params.redo == false) chk.read();
 
 	string original_model = params.model_name;
 

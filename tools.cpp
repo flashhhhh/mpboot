@@ -635,6 +635,7 @@ void parseArg(int argc, char *argv[], Params &params) {
 	params.gene_trees_file = NULL;
 	params.gene_concordance = false;
 	params.site_concordance = 0;
+	params.redo = false;
     params.newick_extended_format = false;
     params.remove_empty_seq = true;
     params.terrace_aware = true;
@@ -1509,6 +1510,10 @@ void parseArg(int argc, char *argv[], Params &params) {
 			}
 			if (strcmp(argv[cnt], "--figtree") == 0) {
                 params.newick_extended_format = true;
+                continue;
+            }
+			if (strcmp(argv[cnt], "-redo") == 0) {
+				params.redo = true;
                 continue;
             }
 			if (strcmp(argv[cnt], "-keep_empty_seq") == 0) {
